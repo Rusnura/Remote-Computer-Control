@@ -1,16 +1,25 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Timers;
 
 namespace RemoteComputerControl
 {
     public class Program
     {
+        // Close button
+        [DllImport("user32.dll")]
+        static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
+        [DllImport("user32.dll")]
+        static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+        internal const UInt32 SC_CLOSE = 0xF060;
+        internal const UInt32 MF_ENABLED = 0x00000000;
+        internal const UInt32 MF_GRAYED = 0x00000001;
+        internal const UInt32 MF_DISABLED = 0x00000002;
+        internal const uint MF_BYCOMMAND = 0x00000000;
+
         [DllImport("kernel32.dll")]
         private static extern IntPtr GetConsoleWindow();
         [DllImport("user32.dll")]
@@ -30,6 +39,12 @@ namespace RemoteComputerControl
         private static string autoLaunchKey = "rcc";
         private static string currentAppPath = Assembly.GetEntryAssembly().Location;
 
+
+        private static void EnableCloseButton(bool bEnabled)
+        {
+            IntPtr hSystemMenu = GetSystemMenu(GetConsoleWindow(), false);
+            EnableMenuItem(hSystemMenu, SC_CLOSE, (uint)(MF_ENABLED | (bEnabled ? MF_ENABLED : MF_GRAYED)));
+        }
         public void Start(string[] args)
         {
             blocker = BlockProcessor.getInstanse(blockingQ, userAPI);
@@ -37,10 +52,12 @@ namespace RemoteComputerControl
             if (!userAPI.isUserRegistered())
             {
                 if (normalBehaviourWithWindow) ShowWindow(currentConsolwWindowPointer, SW_SHOW);
+                EnableCloseButton(true);
                 try
                 {
                     userAPI.register();
                     if (normalBehaviourWithWindow) ShowWindow(currentConsolwWindowPointer, SW_HIDE);
+                    EnableCloseButton(false);
                 }
                 catch (Exception e)
                 {
@@ -138,6 +155,7 @@ namespace RemoteComputerControl
 
         static void Main(string[] args)
         {
+            EnableCloseButton(false);
             if (args.Length > 0)
             {
                 for (int i = 0; i < args.Length; i++)
